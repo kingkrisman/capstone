@@ -1,0 +1,10 @@
+# Raw course data (large and not ours to redistribute)
+data/*.csv
+data/*.xlsx
+
+# Build artefacts
+analysis/output/report.html
+__pycache__/
+*.pyc
+.DS_Store
+.venv/

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Logistics Operations Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#FAFAFA; --surface:#FFFFFF; --text:#171717; --muted:#737373; --faint:#A3A3A3;
+  --border:#E5E5E5; --hair:#F0F0F0; --hover:#F5F5F5;
+  --accent:#2563EB; --accent-soft:#DBE7FE; --pos:#15803D; --neg:#DC2626; --neg-soft:#FDE4E4; --chart2:#D4D4D4;
+  --sans:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.23,1,.32,1);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0A0A0A; --surface:#141414; --text:#EDEDED; --muted:#A1A1A1; --faint:#6B6B6B;
+  --border:#262626; --hair:#1F1F1F; --hover:#1C1C1C;
+  --accent:#4C8DFF; --accent-soft:#16284A; --pos:#4ADE80; --neg:#F87171; --neg-soft:#3A1818; --chart2:#525252;}}
+:root[data-theme="dark"]{
+  --bg:#0A0A0A; --surface:#141414; --text:#EDEDED; --muted:#A1A1A1; --faint:#6B6B6B;
+  --border:#262626; --hair:#1F1F1F; --hover:#1C1C1C;
+  --accent:#4C8DFF; --accent-soft:#16284A; --pos:#4ADE80; --neg:#F87171; --neg-soft:#3A1818; --chart2:#525252;}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:auto}
+body{margin:0;background:var(--bg);color:var(--text);font:400 14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;font-feature-settings:"ss01"}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+@media (max-width:640px){.wrap{padding:0 16px}}
+
+header{border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:10;padding-top:env(safe-area-inset-top,0px)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:56px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:22px;height:22px;border-radius:6px;background:var(--text);display:grid;place-items:center;flex:none}
+.mark svg{width:13px;height:13px;color:var(--bg)}
+.brand b{font-weight:600;font-size:14px;white-space:nowrap}
+.brand span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slash{color:var(--border)}
+.seg{display:inline-flex;padding:2px;background:var(--hover);border:1px solid var(--border);border-radius:8px;flex:none}
+.seg button{font:500 13px var(--sans);color:var(--muted);background:none;border:0;border-radius:6px;padding:4px 10px;cursor:pointer;transition:color .15s ease,background-color .15s ease}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--border)}
+@media (hover:hover) and (pointer:fine){.seg button:not([aria-pressed="true"]):hover{color:var(--text)}}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{font:500 13px var(--sans);color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:10px 10px 11px;cursor:pointer;white-space:nowrap;transition:color .15s ease}
+.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
+@media (hover:hover) and (pointer:fine){.tabs button:hover{color:var(--text)}}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:6px}
+
+main.wrap{padding-top:32px;padding-bottom:56px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+.head h1{font-size:20px;font-weight:600;letter-spacing:-.015em;margin:0}
+.head p{margin:2px 0 0;color:var(--muted)}
+.meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.panel-tab[hidden]{display:none}
+.panel-tab{animation:in .18s var(--ease)}
+@keyframes in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.panel-tab{animation:none}}
+
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g21{grid-template-columns:2fr 1fr}
+@media (max-width:960px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g21,.g3{grid-template-columns:1fr}}
+@media (max-width:720px){.g2{grid-template-columns:1fr}}
+.stack{display:grid;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
+.card h2{font-size:13px;font-weight:500;margin:0;color:var(--text)}
+.card .sub{font-size:12px;color:var(--muted);margin:2px 0 0}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.insight{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--hair);color:var(--muted);font-size:13px}
+.insight b{color:var(--text);font-weight:500}
+
+.kpi{display:flex;flex-direction:column;gap:6px;padding:14px 16px}
+.kpi .label{font-size:12px;color:var(--muted)}
+.kpi .row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.kpi .value{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.kpi .foot{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:18px}
+.delta{font:500 11px var(--mono);padding:1px 5px;border-radius:4px;background:var(--hover);color:var(--muted)}
+.delta.up{color:var(--pos)}.delta.down{color:var(--neg)}
+.spark{width:84px;height:28px;flex:none}
+
+.cv{position:relative;height:260px}
+.cv.sm{height:200px}
+.card.fill{display:flex;flex-direction:column}.card.fill .cv{flex:1;min-height:260px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:0}
+
+.tbl{overflow:auto;margin:0 -16px -16px;border-top:1px solid var(--hair)}
+.tbl.max{max-height:520px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:9px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+th .arr{color:var(--faint);font-size:10px}
+td{padding:9px 16px;border-bottom:1px solid var(--hair);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+@media (hover:hover) and (pointer:fine){tbody tr:hover td{background:var(--hover)}}
+.r{text-align:right}
+.inbar{display:flex;align-items:center;gap:10px;justify-content:flex-end}
+.inbar .t{width:72px;height:6px;border-radius:3px;background:var(--hair);overflow:hidden}
+.inbar .t span{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.inbar.low .t span{background:var(--neg)}
+.tag{font-size:11px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--hover);color:var(--muted);margin-left:6px}
+.tag.neg{background:var(--neg-soft);color:var(--neg)}
+
+.findings{list-style:none;margin:0;padding:0}
+.findings li{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:12px 0;border-top:1px solid var(--hair);align-items:baseline}
+.findings li:first-child{border-top:0;padding-top:4px}
+.findings .v{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.findings p{margin:0;color:var(--muted)}
+.findings p b{color:var(--text);font-weight:500}
+.recs{list-style:none;margin:0;padding:0;counter-reset:r}
+.recs li{counter-increment:r;display:grid;grid-template-columns:28px 1fr auto;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}
+.recs li:first-child{border-top:0;padding-top:2px}
+.recs li::before{content:counter(r);font:500 12px var(--mono);color:var(--muted);width:22px;height:22px;border:1px solid var(--border);border-radius:6px;display:grid;place-items:center}
+.recs h3{margin:0;font-size:14px;font-weight:500}
+.recs p{margin:3px 0 0;color:var(--muted);max-width:76ch}
+.recs .imp{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;background:var(--hover);border:1px solid var(--border);border-radius:4px;padding:1px 6px;height:fit-content}
+.notes{list-style:none;margin:0;padding:0}
+.notes li{padding:12px 0;border-top:1px solid var(--hair)}
+.notes li:first-child{border-top:0;padding-top:2px}
+.notes h3{margin:0;font-size:14px;font-weight:500}
+.notes p{margin:3px 0 0;color:var(--muted);max-width:80ch}
+.mix{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin:8px 0 10px}
+.mix span{display:block}
+.stat{font-size:22px;font-weight:600;letter-spacing:-.02em}
+footer{color:var(--faint);font-size:12px;padding-top:24px;max-width:90ch}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4h8v6.5h-8zM9.5 6.5h3l2 2.2v1.8h-5"/><circle cx="4.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/></svg></div>
+      <b>Logistics Ops</b><span class="slash">/</span><span>Performance review</span>
+    </div>
+    <div class="seg" role="group" aria-label="Year" id="seg">
+      <button data-y="all" aria-pressed="true">All</button><button data-y="2022" aria-pressed="false">2022</button><button data-y="2023" aria-pressed="false">2023</button><button data-y="2024" aria-pressed="false">2024</button>
+    </div>
+  </div>
+  <div class="wrap"><div class="tabs" role="tablist" aria-label="Sections" id="tabs">
+    <button role="tab" data-t="overview" aria-selected="true">Overview</button>
+    <button role="tab" data-t="service" aria-selected="false" tabindex="-1">Service</button>
+    <button role="tab" data-t="lanes" aria-selected="false" tabindex="-1">Lanes</button>
+    <button role="tab" data-t="fleet" aria-selected="false" tabindex="-1">Fleet</button>
+    <button role="tab" data-t="safety" aria-selected="false" tabindex="-1">Safety</button>
+    <button role="tab" data-t="customers" aria-selected="false" tabindex="-1">Customers</button>
+    <button role="tab" data-t="recs" aria-selected="false" tabindex="-1">Recommendations</button>
+    <button role="tab" data-t="notes" aria-selected="false" tabindex="-1">Data notes</button>
+  </div></div>
+</header>
+
+<main class="wrap">
+  <div class="head">
+    <div><h1 id="title">Overview</h1><p id="subtitle"></p></div>
+    <div class="meta" id="range">Jan 2022 – Dec 2024</div>
+  </div>
+
+  <section class="panel-tab" id="p-overview" role="tabpanel">
+    <div class="grid g4" id="kpis"></div>
+    <div class="grid g21" style="margin-top:12px">
+      <div class="card fill">
+        <div class="card-h"><div><h2>Revenue by month</h2><p class="sub">Linehaul, fuel surcharge and accessorials</p></div></div>
+        <div class="cv"><canvas id="cRev"></canvas></div>
+        <p class="insight" id="revIns"></p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Key findings</h2><p class="sub">Across all three years</p></div></div>
+        <ul class="findings" id="findings"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-service" role="tabpanel" hidden>
+    <div class="grid g4" id="svcKpis"></div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-h"><div><h2>Arrival vs scheduled time</h2><p class="sub">Share of deliveries, all years</p></div><div class="legend"><span><i style="background:var(--accent)"></i>On time (±2h)</span><span><i style="background:var(--neg)"></i>Outside window</span></div></div>
+        <div class="cv"><canvas id="cDelay"></canvas></div>
+        <p class="insight">Arrivals are spread evenly from 3 hours early to 6 hours late. <b>44%</b> land more than 2 hours late and average about <b>4 hours</b> behind schedule.</p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Detention time per stop</h2><p class="sub">Share of stops, all years</p></div><div class="legend"><span><i style="background:var(--chart2)"></i>Pickup</span><span><i style="background:var(--accent)"></i>Delivery</span></div></div>
+        <div class="cv"><canvas id="cDet"></canvas></div>
+        <p class="insight">Trucks wait longer at delivery than at pickup. Across all stops that is about <b>49,800 hours</b> beyond a standard 2 free hours.</p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>On-time rate by month</h2><p class="sub">Pickups vs deliveries</p></div><div class="legend"><span><i style="background:var(--chart2)"></i>Pickup</span><span><i style="background:var(--accent)"></i>Delivery</span></div></div>
+        <div class="cv sm"><canvas id="cOT"></canvas></div>
+        <p class="insight">Both lines are flat for three years. Nothing has changed the result, so the cause is structural.</p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>On-time delivery by segment</h2><p class="sub" id="segSub"></p></div></div>
+        <div class="tbl"><table id="tSeg"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-lanes" role="tabpanel" hidden>
+    <div class="grid g4" id="laneKpis"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-h"><div><h2>Lane economics</h2><p class="sub">Click a column to sort. Net is revenue left after estimated fuel.</p></div></div>
+      <div class="tbl max"><table id="tLanes"></table></div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-fleet" role="tabpanel" hidden>
+    <div class="grid g4" id="fleetKpis"></div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-h"><div><h2>Trucks by model year</h2><p class="sub">120 trucks in the fleet</p></div></div>
+        <div class="cv"><canvas id="cYears"></canvas></div>
+        <p class="insight"><b>65%</b> of the fleet are 2015 models. Only 20 trucks are from 2018 or later.</p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Maintenance spend by type</h2><p class="sub" id="mSub"></p></div></div>
+        <div class="cv"><canvas id="cMaint"></canvas></div>
+        <p class="insight" id="mixIns"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-safety" role="tabpanel" hidden>
+    <div class="grid g4" id="safeKpis"></div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-h"><div><h2>Claims by incident type</h2><p class="sub" id="sSub"></p></div><div class="legend"><span><i style="background:var(--neg)"></i>Preventable</span><span><i style="background:var(--chart2)"></i>Not preventable</span></div></div>
+        <div class="cv"><canvas id="cSafe"></canvas></div>
+        <p class="insight">Equipment damage costs the most. DOT violations have the highest preventable share, which points to hours-of-service and inspection compliance.</p>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Drivers with repeat incidents</h2><p class="sub">All years</p></div></div>
+        <div class="tbl"><table id="tDrv"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-customers" role="tabpanel" hidden>
+    <div class="grid g4" id="custKpis"></div>
+    <div class="grid g21" style="margin-top:12px">
+      <div class="card">
+        <div class="card-h"><div><h2>Top 10 accounts</h2><p class="sub">By revenue</p></div></div>
+        <div class="tbl"><table id="tCust"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Revenue by contract type</h2><p class="sub" id="ctSub"></p></div></div>
+        <div class="cv"><canvas id="cCust"></canvas></div>
+        <p class="insight">Dedicated, contract and spot customers all get the same on-time rate. Committed customers see no better service.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel-tab" id="p-recs" role="tabpanel" hidden>
+    <div class="card"><ol class="recs" id="recs"></ol></div>
+  </section>
+
+  <section class="panel-tab" id="p-notes" role="tabpanel" hidden>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><div><h2>Data quality issues</h2><p class="sub">Found while cleaning and joining the 14 tables</p></div></div><ul class="notes" id="dq"></ul></div>
+      <div class="card"><div class="card-h"><div><h2>Method</h2><p class="sub">How the figures were calculated</p></div></div><ul class="notes" id="method"></ul></div>
+    </div>
+  </section>
+
+  <footer>Source: Logistics Operations Database, 14 tables, January 2022 to December 2024. 85,410 loads and trips, 196,442 fuel purchases, 170,820 delivery events, 2,920 maintenance records and 170 safety incidents.</footer>
+</main>
+
+<script>
+const D=__DATA__;
+const $=s=>document.querySelector(s);
+const money=(v,d=1)=>{const a=Math.abs(v),s=v<0?'-':'';return a>=1e6?s+'$'+(a/1e6).toFixed(d)+'M':a>=1e3?s+'$'+(a/1e3).toFixed(0)+'K':s+'$'+a.toFixed(0)};
+const pct=(v,d=1)=>(v*100).toFixed(d)+'%';
+const num=v=>Math.round(v).toLocaleString('en-US');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+let Y='all', TAB='overview', charts={}, laneSort={k:'rpm',dir:1};
+const TITLES={overview:['Overview','Revenue, service and cost at a glance'],service:['Service','On-time performance and detention'],lanes:['Lanes','Revenue and fuel cost across 58 lanes'],fleet:['Fleet','Truck age, maintenance and downtime'],safety:['Safety','Incidents, claims and preventability'],customers:['Customers','Accounts, contract types and churn'],recs:['Recommendations','Ordered by likely impact'],notes:['Data notes','Quality issues and method']};
+
+function prev(){return Y==='all'||Y==='2022'?null:D[String(+Y-1)].k}
+function months(){const m=D.monthly;if(Y==='all')return m;const i=m.labels.findIndex(l=>l.startsWith(Y));const s=a=>a.slice(i,i+12);return {labels:s(m.labels),rev:s(m.rev),loads:s(m.loads),ot:s(m.ot),pk:s(m.pk),fuelShare:s(m.fuelShare),price:s(m.price)}}
+function delta(cur,p,{inverse=false,pts=false}={}){if(p==null)return '';const d=pts?(cur-p)*100:(cur/p-1)*100;if(Math.abs(d)<0.05)return `<span class="delta">0.0${pts?'pt':'%'}</span>`;const good=inverse?d<0:d>0;return `<span class="delta ${good?'up':'down'}">${d>0?'+':''}${d.toFixed(1)}${pts?'pt':'%'}</span>`}
+function spark(arr,color){if(!arr||arr.length<2)return '';if(arr.length>12){const q=[];for(let i=0;i<arr.length;i+=3)q.push((arr[i]+arr[i+1]+arr[i+2])/3);arr=q}
+  const w=84,h=28,mean=arr.reduce((x,y)=>x+y,0)/arr.length,lo=Math.min(...arr),hi=Math.max(...arr),span=Math.max(hi-lo,Math.abs(mean)*.12),mid=(hi+lo)/2,mn=mid-span/2,r=span;const pts=arr.map((v,i)=>`${(i/(arr.length-1)*w).toFixed(1)},${(h-2-(v-mn)/r*(h-4)).toFixed(1)}`).join(' ');return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/></svg>`}
+function kpiCard(label,value,foot,sp){return `<div class="card kpi"><div class="label">${label}</div><div class="row"><div class="value num">${value}</div>${sp||''}</div><div class="foot">${foot}</div></div>`}
+const vs=()=>Y==='all'||Y==='2022'?'':'vs '+(+Y-1);
+
+function baseChart(){
+  Chart.defaults.font.family=css('--sans');Chart.defaults.font.size=11;Chart.defaults.color=css('--muted');
+  Chart.defaults.borderColor=css('--hair');Chart.defaults.maintainAspectRatio=false;
+  Chart.defaults.animation=reduce?false:{duration:220,easing:'easeOutQuart'};
+  Chart.defaults.plugins.legend.display=false;
+  Object.assign(Chart.defaults.plugins.tooltip,{backgroundColor:css('--surface'),titleColor:css('--text'),bodyColor:css('--muted'),borderColor:css('--border'),borderWidth:1,padding:10,cornerRadius:8,boxWidth:8,boxHeight:8,boxPadding:4,titleFont:{weight:'500',size:12},bodyFont:{size:12},usePointStyle:true});
+  Chart.defaults.scale.grid.drawTicks=false;Chart.defaults.scale.border={display:false};Chart.defaults.scale.ticks.padding=8;
+}
+function mk(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg)}
+const mlabel=l=>{const [y,m]=l.split('-');return new Date(y,m-1).toLocaleString('en-US',{month:'short'})+(Y==='all'?" '"+y.slice(2):'')};
+const xNoGrid={grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:Y==='all'?7:12}};
+
+/* ---------- tabs ---------- */
+function overview(){
+  const k=D[Y].k,p=prev(),m=months(),a=css('--accent');
+  $('#kpis').innerHTML=[
+    kpiCard('Revenue',money(k.rev),`${delta(k.rev,p?.rev)} ${p?vs():num(k.loads)+' loads'}`,spark(m.rev,a)),
+    kpiCard('Revenue per mile','$'+k.rpm.toFixed(2),`${delta(k.rpm,p?.rpm)} ${p?vs():num(k.miles/1e6)+'M miles'}`),
+    kpiCard('On-time delivery',pct(k.ot),`${delta(k.ot,p?.ot,{pts:true})} ${p?vs():'Pickups '+pct(k.pk,0)}`,spark(m.ot,css('--neg'))),
+    kpiCard('Fuel cost, est.',money(k.fuel),`${delta(k.fuelShare,p?.fuelShare,{inverse:true,pts:true})} ${pct(k.fuelShare)} of revenue`,spark(m.fuelShare,a)),
+    kpiCard('Loads',num(k.loads),`${delta(k.loads,p?.loads)} ${p?vs():'Avg '+num(k.loads/(Y==='all'?36:12))+' a month'}`,spark(m.loads,a)),
+    kpiCard('Fuel economy',k.mpg.toFixed(2)+' mpg',`${delta(k.mpg,p?.mpg)} ${p?vs():'Fleet average'}`),
+    kpiCard('Maintenance',money(k.maint,2),`${delta(k.maint,p?.maint,{inverse:true})} ${num(k.down)} h downtime`),
+    kpiCard('Safety claims',money(k.claims,2),`${delta(k.claims,p?.claims,{inverse:true})} ${num(k.inc)} incidents`)
+  ].join('');
+  mk('cRev',{type:'line',data:{labels:m.labels.map(mlabel),datasets:[
+    {label:'Revenue',data:m.rev,borderColor:a,borderWidth:1.75,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:a,pointHoverBorderColor:css('--surface'),pointHoverBorderWidth:2,tension:.3,cubicInterpolationMode:'monotone',fill:'start',
+     backgroundColor:c=>{const {ctx,chartArea:ar}=c.chart;if(!ar)return 'transparent';const g=ctx.createLinearGradient(0,ar.top,0,ar.bottom);g.addColorStop(0,hexA(css('--accent'),.16));g.addColorStop(1,hexA(css('--accent'),0));return g}}]},
+    options:{animations:{colors:false},transitions:{active:{animation:{duration:0}}},interaction:{mode:'index',intersect:false},scales:{x:xNoGrid,y:{min:7e6,max:9e6,ticks:{callback:v=>money(v,1),stepSize:5e5}}},
+      plugins:{tooltip:{callbacks:{label:c=>' Revenue  '+money(c.raw,2),afterLabel:c=>' Loads  '+num(m.loads[c.dataIndex])}}}}});
+  const y=['2022','2023','2024'].map(v=>D[v].k);
+  $('#revIns').innerHTML=Y==='all'?`Revenue was flat at <b>${money(y[0].rev)}</b>, <b>${money(y[1].rev)}</b> and <b>${money(y[2].rev)}</b> across the three years. Volume is steady apart from a shorter February.`:`${Y} revenue was <b>${money(k.rev)}</b> from ${num(k.loads)} loads${p?`, ${k.rev>=p.rev?'up':'down'} ${Math.abs((k.rev/p.rev-1)*100).toFixed(1)}% on ${+Y-1}`:''}.`;
+  const a2=D.all.k;
+  $('#findings').innerHTML=[
+    [pct(a2.ot,0),'<b>of deliveries arrive on time.</b> The rate is unchanged in three years and identical across facilities and customer types.'],
+    ['49.8K h','<b>of detention</b> beyond 2 free hours, while accessorials average only $72 a load.'],
+    ['$1.70','<b>per mile on the lowest-paying lane.</b> Fuel costs the same everywhere, so rate decides lane quality.'],
+    ['+29%','<b>more fuel bought than burned.</b> Purchases don\'t track trip distance and need an audit.'],
+    ['33%','<b>of maintenance visits are emergencies,</b> on a fleet where 65% of trucks are 2015 models.'],
+    ['16%','<b>of revenue came from accounts now inactive.</b> Churn deserves a follow-up.']
+  ].map(f=>`<li><div class="v num">${f[0]}</div><p>${f[1]}</p></li>`).join('');
+}
+
+function service(){
+  const k=D[Y].k,p=prev(),m=months(),a=css('--accent'),n=css('--neg'),g=css('--chart2');
+  $('#svcKpis').innerHTML=[
+    kpiCard('On-time delivery',pct(k.ot),`${delta(k.ot,p?.ot,{pts:true})} ${p?vs():'Within ±2h of schedule'}`,spark(m.ot,n)),
+    kpiCard('On-time pickup',pct(k.pk),`${delta(k.pk,p?.pk,{pts:true})} ${p?vs():'Delay builds after pickup'}`,spark(m.pk,a)),
+    kpiCard('Median arrival','+'+Math.round(k.delayMed)+' min','After scheduled time'),
+    kpiCard('Waits over 2h',pct(k.det2h),`At delivery, avg ${Math.round(k.detDel)} min`)
+  ].join('');
+  const d=D.delay,t=d.n.reduce((x,y)=>x+y,0);
+  mk('cDelay',{type:'bar',data:{labels:d.labels,datasets:[{label:'Deliveries',data:d.n.map(v=>v/t),backgroundColor:d.labels.map((l,i)=>i===0||i>=5?n:a),borderRadius:4,barPercentage:.75}]},
+    options:{scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:false,font:{size:10},callback:v=>['−3','−2','−1','0','+1','+2','+3','+4','+5'][v]+'h'},title:{display:true,text:'Hours from scheduled time (bin start)',color:css('--faint'),font:{size:11}}},y:{ticks:{callback:v=>pct(v,0),maxTicksLimit:5}}},
+      plugins:{tooltip:{callbacks:{label:c=>' '+pct(c.raw)+' of deliveries'}}}}});
+  const dt=D.det,tp=dt.pk.reduce((x,y)=>x+y,0),tl=dt.dl.reduce((x,y)=>x+y,0);
+  mk('cDet',{type:'bar',data:{labels:dt.labels,datasets:[{label:'Pickup',data:dt.pk.map(v=>v/tp),backgroundColor:g,borderRadius:4},{label:'Delivery',data:dt.dl.map(v=>v/tl),backgroundColor:a,borderRadius:4}]},
+    options:{scales:{x:{grid:{display:false},ticks:{maxRotation:0}},y:{ticks:{callback:v=>pct(v,0),maxTicksLimit:5}}},plugins:{tooltip:{callbacks:{label:c=>' '+c.dataset.label+'  '+pct(c.raw)}}}}});
+  mk('cOT',{type:'line',data:{labels:m.labels.map(mlabel),datasets:[{label:'Pickup',data:m.pk,borderColor:g,borderWidth:1.75,pointRadius:0,tension:.3},{label:'Delivery',data:m.ot,borderColor:a,borderWidth:1.75,pointRadius:0,tension:.3}]},
+    options:{interaction:{mode:'index',intersect:false},scales:{x:xNoGrid,y:{min:.3,max:.8,ticks:{callback:v=>pct(v,0),maxTicksLimit:5}}},plugins:{tooltip:{callbacks:{label:c=>' '+c.dataset.label+'  '+pct(c.raw)}}}}});
+  const ct=D[Y].ctype,f=D[Y].fac;
+  $('#segSub').textContent=Y==='all'?'All years':Y;
+  const row=(s,v,g2)=>`<tr><td>${s}</td><td style="color:var(--muted)">${g2}</td><td class="r num">${pct(v)}</td></tr>`;
+  $('#tSeg').innerHTML='<thead><tr><th>Segment</th><th>Group</th><th class="r">On time</th></tr></thead><tbody>'+
+    Object.entries(f).map(([s,v])=>row(s,v,'Facility')).join('')+ct.map(c=>row(c.customer_type,c.ot,'Customer')).join('')+'</tbody>';
+}
+
+function lanes(){
+  const L=D[Y].lanes,k=D[Y].k,cpm=L.reduce((x,l)=>x+l.fuel,0)/L.reduce((x,l)=>x+l.miles,0);
+  const s=[...L].sort((a,b)=>a.rpm-b.rpm), low=s.filter(l=>l.rpm<1.85).length;
+  $('#laneKpis').innerHTML=[
+    kpiCard('Avg revenue per mile','$'+k.rpm.toFixed(2),'Across 58 lanes'),
+    kpiCard('Fuel cost per mile','$'+cpm.toFixed(2),'Nearly identical on every lane'),
+    kpiCard('Rate range','$'+s[0].rpm.toFixed(2)+'–'+s[s.length-1].rpm.toFixed(2),'Lowest to highest lane'),
+    kpiCard('Lanes under $1.85/mi',String(low),'Candidates to reprice')
+  ].join('');
+  drawLanes();
+}
+function drawLanes(){
+  const L=[...D[Y].lanes],{k,dir}=laneSort,mx=Math.max(...L.map(l=>l.rpm));
+  L.sort((a,b)=>(typeof a[k]==='string'?a[k].localeCompare(b[k]):a[k]-b[k])*dir);
+  const cols=[['lane','Lane',''],['loads','Loads','r'],['dist','Miles','r'],['rpm','Revenue / mile','r'],['cpm','Fuel / mile','r'],['net','Net after fuel','r']];
+  const th=cols.map(([key,lab,cl])=>`<th class="${cl}" aria-sort="${k===key?(dir>0?'ascending':'descending'):'none'}"><button data-k="${key}">${lab}<span class="arr">${k===key?(dir>0?'▲':'▼'):''}</span></button></th>`).join('');
+  $('#tLanes').innerHTML=`<thead><tr>${th}</tr></thead><tbody>`+L.map(l=>`<tr><td>${l.lane}</td><td class="r num">${num(l.loads)}</td><td class="r num">${num(l.dist)}</td><td class="r"><div class="inbar ${l.rpm<1.85?'low':''}"><span class="num">$${l.rpm.toFixed(2)}</span><div class="t"><span style="width:${((l.rpm-1.4)/(mx-1.4)*100).toFixed(1)}%"></span></div></div></td><td class="r num" style="color:var(--muted)">$${l.cpm.toFixed(2)}</td><td class="r num">${money(l.net,2)}</td></tr>`).join('')+'</tbody>';
+  $('#tLanes').querySelectorAll('th button').forEach(b=>b.onclick=()=>{const key=b.dataset.k;laneSort=laneSort.k===key?{k:key,dir:-laneSort.dir}:{k:key,dir:key==='lane'?1:-1};drawLanes();$(`#tLanes th button[data-k="${key}"]`).focus()});
+}
+
+function fleet(){
+  const k=D[Y].k,p=prev(),f=D.fleet,a=css('--accent'),mk2=D[Y].mkind,tot=mk2.reduce((x,y)=>x+y.n,0),em=mk2.find(x=>x.kind==='Emergency');
+  const out=(f.status.Maintenance||0)+(f.status.Inactive||0);
+  $('#fleetKpis').innerHTML=[
+    kpiCard('Fleet size','120',`${f.status.Active} active, ${out} out of service`),
+    kpiCard('Maintenance spend',money(k.maint,2),`${delta(k.maint,p?.maint,{inverse:true})} ${p?vs():'Parts are 78% of cost'}`),
+    kpiCard('Downtime',num(k.down)+' h',`${delta(k.down,p?.down,{inverse:true})} ${p?vs():'From service visits'}`),
+    kpiCard('Emergency repairs',pct(k.emerg,0),`${num(em.n)} visits, ${money(em.cost,2)}`)
+  ].join('');
+  const yrs=Object.keys(f.years);
+  mk('cYears',{type:'bar',data:{labels:yrs,datasets:[{label:'Trucks',data:yrs.map(y=>f.years[y]),backgroundColor:yrs.map(y=>y==='2015'?a:css('--chart2')),borderRadius:4,barPercentage:.6}]},
+    options:{scales:{x:{grid:{display:false}},y:{ticks:{precision:0,maxTicksLimit:5}}},plugins:{tooltip:{callbacks:{label:c=>' '+c.raw+' trucks'}}}}});
+  const mt=D[Y].mtype;
+  $('#mSub').textContent=num(tot)+' service visits'+(Y==='all'?'':' in '+Y);
+  mk('cMaint',{type:'bar',data:{labels:mt.map(x=>x.maintenance_type),datasets:[{label:'Spend',data:mt.map(x=>x.cost),backgroundColor:mt.map(x=>x.maintenance_type==='Inspection'?css('--chart2'):a),borderRadius:4,barPercentage:.65}]},
+    options:{indexAxis:'y',scales:{x:{ticks:{callback:v=>money(v,0),maxTicksLimit:5}},y:{grid:{display:false}}},plugins:{tooltip:{callbacks:{label:c=>' '+money(c.raw,2)+' across '+num(mt[c.dataIndex].n)+' visits'}}}}});
+  $('#mixIns').innerHTML=`Spend is spread evenly across service types, so no single system is failing. The issue is timing: <b>${pct(k.emerg,0)}</b> of visits were unplanned.`;
+}
+
+function safety(){
+  const k=D[Y].k,p=prev(),s=D[Y].stype;
+  $('#safeKpis').innerHTML=[
+    kpiCard('Incidents',num(k.inc),`${delta(k.inc,p?.inc,{inverse:true})} ${k.incRate.toFixed(2)} per million miles`),
+    kpiCard('Claims',money(k.claims,2),`${delta(k.claims,p?.claims,{inverse:true})} ${p?vs():'Vehicle and cargo damage'}`),
+    kpiCard('Preventable',pct(k.prev,0),'Of all incidents'),
+    kpiCard('Preventable cost',money(k.prevCost,2),'Avoidable with better practice')
+  ].join('');
+  $('#sSub').textContent=num(k.inc)+' incidents'+(Y==='all'?', all years':' in '+Y);
+  mk('cSafe',{type:'bar',data:{labels:s.map(x=>x.incident_type),datasets:[
+    {label:'Preventable',data:s.map(x=>x.cost*x.prev/x.n),backgroundColor:css('--neg'),borderRadius:{topLeft:4,bottomLeft:4},borderSkipped:false,stack:'a',barPercentage:.6},
+    {label:'Not preventable',data:s.map(x=>x.cost*(1-x.prev/x.n)),backgroundColor:css('--chart2'),borderRadius:{topRight:4,bottomRight:4},borderSkipped:false,stack:'a',barPercentage:.6}]},
+    options:{indexAxis:'y',interaction:{mode:'index',intersect:false},scales:{x:{stacked:true,ticks:{callback:v=>money(v,0),maxTicksLimit:5}},y:{stacked:true,grid:{display:false}}},
+      plugins:{tooltip:{callbacks:{label:c=>' '+c.dataset.label+'  '+money(c.raw),footer:it=>{const x=s[it[0].dataIndex];return x.n+' incidents, '+x.prev+' preventable'}}}}}});
+  $('#tDrv').innerHTML='<thead><tr><th>Driver</th><th class="r">Trips</th><th class="r">Incidents</th><th class="r">Preventable</th><th class="r">Claims</th></tr></thead><tbody>'+
+    D.drvinc.map(d=>`<tr><td>${d.first_name} ${d.last_name}</td><td class="r num">${num(d.trips)}</td><td class="r num">${d.inc}</td><td class="r num">${d.prev}</td><td class="r num">${money(d.cost)}</td></tr>`).join('')+'</tbody>';
+}
+
+function customers(){
+  const k=D[Y].k,ct=D[Y].ctype,tot=ct.reduce((x,y)=>x+y.rev,0),top=D[Y].top,t10=top.reduce((x,y)=>x+y.rev,0)/k.rev;
+  const inact=top.filter(c=>c.account_status==='Inactive').length;
+  $('#custKpis').innerHTML=[
+    kpiCard('Accounts','200','Under 107 company names'),
+    kpiCard('Top 10 share',pct(t10),'Low concentration risk'),
+    kpiCard('From inactive accounts',pct(k.inactiveShare,0),'Of revenue in the period'),
+    kpiCard('Largest segment',ct.slice().sort((a,b)=>b.rev-a.rev)[0].customer_type,pct(Math.max(...ct.map(c=>c.rev))/tot,0)+' of revenue')
+  ].join('');
+  $('#tCust').innerHTML='<thead><tr><th>Account</th><th>Type</th><th class="r">Loads</th><th class="r">Revenue</th><th class="r">On time</th></tr></thead><tbody>'+
+    top.map(c=>`<tr><td>${c.customer_name}${c.account_status==='Inactive'?'<span class="tag neg">Inactive</span>':''}</td><td style="color:var(--muted)">${c.customer_type}</td><td class="r num">${num(c.loads)}</td><td class="r num">${money(c.rev,2)}</td><td class="r num">${pct(c.ot,0)}</td></tr>`).join('')+'</tbody>';
+  $('#ctSub').textContent=Y==='all'?'All years':Y;
+  mk('cCust',{type:'bar',data:{labels:ct.map(c=>c.customer_type),datasets:[{label:'Revenue',data:ct.map(c=>c.rev),backgroundColor:css('--accent'),borderRadius:4,barPercentage:.55}]},
+    options:{scales:{x:{grid:{display:false}},y:{min:0,ticks:{callback:v=>money(v,0),maxTicksLimit:5}}},plugins:{tooltip:{callbacks:{label:c=>' '+money(c.raw)+'  ('+pct(c.raw/tot,0)+')',afterLabel:c=>' On time '+pct(ct[c.dataIndex].ot)}}}}});
+}
+
+function staticContent(){
+  const q=D.dq;
+  $('#recs').innerHTML=[
+    ['Rebuild delivery appointment scheduling','Set appointment windows from actual transit times plus realistic dock waits, then track on-time by lane each week. The failure rate is the same everywhere, so this is a planning problem rather than a driver problem.','Service'],
+    ['Enforce and bill detention','Capture arrival and departure times automatically and invoice waits beyond 2 hours. Roughly 49,800 hours went unbilled, and charging for them also discourages the delays.','Revenue'],
+    ['Reprice the lowest-paying lanes','Renegotiate lanes under about $1.85 a mile at contract renewal, starting with Charlotte to Denver, Las Vegas to New York and Miami to Seattle. Otherwise, shift capacity toward better-paying freight.','Margin'],
+    ['Audit fuel card spending','Match each transaction to a truck, trip and location. Flag purchases beyond tank capacity or off-route, since 29% more fuel was bought than burned.','Cost'],
+    ['Move maintenance from reactive to planned','Tighten preventive intervals on the 2015 trucks and plan replacements for the units with the most downtime, since a third of service visits are emergencies.','Uptime'],
+    ['Target preventable incidents','Strengthen pre-trip inspections and hours-of-service compliance, and coach drivers with repeat incidents. About $0.9M in claims were preventable.','Safety'],
+    ['Follow up with lost accounts','Find out why the inactive accounts left. They made up 16% of revenue, and poor on-time delivery is a likely cause.','Retention']
+  ].map(r=>`<li><div><h3>${r[0]}</h3><p>${r[1]}</p></div><span class="imp">${r[2]}</span></li>`).join('');
+  $('#dq').innerHTML=[
+    ['Fuel purchases don\'t match consumption',`Cards bought ${(q.galBought/1e6).toFixed(1)}M gallons against ${(q.galUsed/1e6).toFixed(1)}M burned. Purchases show no link to trip distance (correlation ≈ 0), and ${q.fuel2025} are dated 2025, after the last load.`],
+    ['Missing trip assignments',`${num(q.missDrv)} trips have no driver and ${num(q.missTrk)} have no truck, about 2% of trips. They are excluded from driver and truck views.`],
+    ['Impossible utilization rates',`${num(q.utilOver)} of ${num(q.utilN)} truck-month records exceed 100%. The monthly utilization table is not used for conclusions.`],
+    ['Duplicate customer names',`There are ${q.custIds} account IDs but only ${q.custNames} distinct names, so accounts are reported by ID.`],
+    ['Invalid locations','Some fuel purchases pair a city with the wrong state (for example New York, AZ).'],
+    ['Little variation between drivers','On-time rate, fuel economy and idle time barely differ between drivers, so driver rankings on those measures are left out.']
+  ].map(n=>`<li><h3>${n[0]}</h3><p>${n[1]}</p></li>`).join('');
+  $('#method').innerHTML=[
+    ['Revenue','Linehaul revenue plus fuel surcharge plus accessorial charges, taken from the loads table.'],
+    ['Fuel cost','Gallons burned per trip multiplied by that month\'s average price per gallon. Fuel purchases are not used for cost because of the mismatch described alongside.'],
+    ['On time','A delivery counts as on time within 2 hours either side of its scheduled time, following the on_time_flag field.'],
+    ['Net after fuel','Revenue minus estimated fuel. The data has no driver pay, insurance or overhead, so this is a contribution figure, not profit.'],
+    ['Detention','Waiting beyond a standard 2-hour free window, summed across pickup and delivery stops.'],
+    ['Joins','Trips are joined to loads, routes and customers by ID. Delivery events are matched to trips as one pickup and one delivery per trip.']
+  ].map(n=>`<li><h3>${n[0]}</h3><p>${n[1]}</p></li>`).join('');
+}
+
+const R={overview,service,lanes,fleet,safety,customers,recs:()=>{},notes:()=>{}};
+function render(){baseChart();R[TAB]();const t=TITLES[TAB];$('#title').textContent=t[0];$('#subtitle').textContent=t[1];$('#range').textContent=(TAB==='recs'||TAB==='notes')?'':Y==='all'?'Jan 2022 – Dec 2024':'Jan – Dec '+Y;}
+function show(t,focus){TAB=t;document.querySelectorAll('#tabs [role=tab]').forEach(b=>{const on=b.dataset.t===t;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;if(on&&focus)b.focus()});
+  document.querySelectorAll('.panel-tab').forEach(p=>p.hidden=p.id!=='p-'+t);render();history.replaceState(null,'','#'+t)}
+const tabBtns=[...document.querySelectorAll('#tabs [role=tab]')];
+tabBtns.forEach((b,i)=>{b.onclick=()=>show(b.dataset.t);b.onkeydown=e=>{let j=null;if(e.key==='ArrowRight')j=(i+1)%tabBtns.length;if(e.key==='ArrowLeft')j=(i-1+tabBtns.length)%tabBtns.length;if(j!=null){e.preventDefault();show(tabBtns[j].dataset.t,true)}}});
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{Y=b.dataset.y;document.querySelectorAll('#seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));render()});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+new MutationObserver(render).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+staticContent();
+const h=location.hash.slice(1);show(TITLES[h]?h:'overview');
+</script>
+</body>
+</html>

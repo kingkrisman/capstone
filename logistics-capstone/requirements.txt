@@ -1,0 +1,3 @@
+pandas>=2.0
+numpy>=1.24
+playwright>=1.40  # only needed for make_pdf.py
